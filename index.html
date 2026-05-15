@@ -229,6 +229,8 @@ select.fc{cursor:pointer}
 .ci:hover .ci-dup{display:flex}
 /* Web Worker 진행 표시 */
 .worker-badge{font-size:10px;padding:2px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:3px;color:var(--txt2)}
+/* 속도 배지 (타임라인) */
+.tc-speed{position:absolute;top:2px;right:2px;background:rgba(74,144,226,.85);color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px}
 /* 모바일 */
 @media(max-width:700px){
   .pnl-l{width:150px}
@@ -381,6 +383,43 @@ select.fc{cursor:pointer}
           <label class="fl">레터박스 배경</label>
           <div class="lbox-grid" id="lboxGrid"></div>
         </div>
+        <hr class="hdivider">
+        <div class="fg">
+          <label class="fl">재생 속도</label>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px" id="clipSpeedBtns"></div>
+        </div>
+        <hr class="hdivider">
+        <div class="fg">
+          <label class="fl">크롭 X (%)</label>
+          <div class="sl-row">
+            <input type="range" id="slCropX" min="0" max="50" step="1" value="0">
+            <span class="sl-val" id="valCropX">0</span>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">크롭 Y (%)</label>
+          <div class="sl-row">
+            <input type="range" id="slCropY" min="0" max="50" step="1" value="0">
+            <span class="sl-val" id="valCropY">0</span>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">크롭 너비 (%)</label>
+          <div class="sl-row">
+            <input type="range" id="slCropW" min="10" max="100" step="1" value="100">
+            <span class="sl-val" id="valCropW">100</span>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">크롭 높이 (%)</label>
+          <div class="sl-row">
+            <input type="range" id="slCropH" min="10" max="100" step="1" value="100">
+            <span class="sl-val" id="valCropH">100</span>
+          </div>
+        </div>
+        <div class="fg">
+          <button class="btn btn-ghost btn-sm" id="btnResetCrop" style="width:100%">크롭 초기화</button>
+        </div>
       </div>
     </div>
 
@@ -418,6 +457,38 @@ select.fc{cursor:pointer}
         <div class="fg">
           <button class="btn btn-ghost btn-sm" id="btnResetAdj" style="width:100%">보정 초기화</button>
         </div>
+        <hr class="hdivider">
+        <div class="fg">
+          <label class="fl">이동 X (%)</label>
+          <div class="sl-row">
+            <input type="range" id="slTransX" min="-50" max="50" step="1" value="0">
+            <span class="sl-val" id="valTransX">0</span>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">이동 Y (%)</label>
+          <div class="sl-row">
+            <input type="range" id="slTransY" min="-50" max="50" step="1" value="0">
+            <span class="sl-val" id="valTransY">0</span>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">크기 배율</label>
+          <div class="sl-row">
+            <input type="range" id="slTransScale" min="0.1" max="3" step="0.05" value="1">
+            <span class="sl-val" id="valTransScale">1.0×</span>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">회전 (°)</label>
+          <div class="sl-row">
+            <input type="range" id="slTransRot" min="-180" max="180" step="1" value="0">
+            <span class="sl-val" id="valTransRot">0°</span>
+          </div>
+        </div>
+        <div class="fg">
+          <button class="btn btn-ghost btn-sm" id="btnResetTrans" style="width:100%">변환 초기화</button>
+        </div>
       </div>
     </div>
 
@@ -438,6 +509,10 @@ select.fc{cursor:pointer}
               <input type="range" id="teFontSize" min="12" max="120" step="2" value="40">
               <span class="sl-val" id="valFontSize">40px</span>
             </div>
+          </div>
+          <div class="fg">
+            <label class="fl">폰트</label>
+            <select class="fc" id="teFontFamily"></select>
           </div>
           <div class="fg">
             <label class="fl">색상 / 스타일</label>
@@ -548,6 +623,18 @@ select.fc{cursor:pointer}
             <input type="checkbox" id="cbMusicFade" checked>
             끝에서 페이드아웃
           </label>
+          <div id="musicTrimSection" style="display:none;margin-top:8px">
+            <label class="fl">시작점 (초)</label>
+            <div class="sl-row">
+              <input type="range" id="slMusicIn" min="0" max="300" step="0.5" value="0">
+              <span class="sl-val" id="valMusicIn">0.0s</span>
+            </div>
+            <label class="fl" style="margin-top:6px">종료점 (초, -1=전체)</label>
+            <div class="sl-row">
+              <input type="range" id="slMusicOut" min="-1" max="300" step="0.5" value="-1">
+              <span class="sl-val" id="valMusicOut">전체</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -559,6 +646,9 @@ select.fc{cursor:pointer}
   <div class="tl-hdr">
     <span style="font-size:11px;color:var(--txt2);font-weight:600">타임라인</span>
     <button class="btn btn-ghost btn-sm" id="btnClearAll">전체 삭제</button>
+    <button class="btn btn-ghost btn-sm" id="btnTlZoomOut" title="축소">−</button>
+    <span id="tlZoomLbl" style="font-size:10px;color:var(--txt2);min-width:22px;text-align:center">1×</span>
+    <button class="btn btn-ghost btn-sm" id="btnTlZoomIn" title="확대">+</button>
     <span class="tl-total" id="tlTotal">전체 0.0초</span>
   </div>
   <div class="tl-track" id="tlTrack" style="position:relative">
@@ -707,6 +797,17 @@ const TEMPLATES = [
   {id:'ppt',     icon:'📊', name:'프레젠테이션',  dur:4.0, tr:'slideL', td:0.5, filter:'none',   kb:false},
 ];
 
+const FONTS = [
+  {id:'system',   label:'시스템',        css:"'Segoe UI','맑은 고딕','Malgun Gothic',sans-serif"},
+  {id:'noto',     label:'Noto Sans KR',  css:"'Noto Sans KR',sans-serif",        google:'Noto+Sans+KR:wght@400;700'},
+  {id:'nanum',    label:'나눔고딕',       css:"'Nanum Gothic',sans-serif",         google:'Nanum+Gothic'},
+  {id:'nanumm',   label:'나눔명조',       css:"'Nanum Myeongjo',serif",            google:'Nanum+Myeongjo'},
+  {id:'gowun',    label:'고운돋움',       css:"'Gowun Dodum',sans-serif",          google:'Gowun+Dodum'},
+  {id:'oswald',   label:'Oswald',        css:"'Oswald',sans-serif",               google:'Oswald'},
+  {id:'roboto',   label:'Roboto',        css:"'Roboto',sans-serif",               google:'Roboto'},
+  {id:'playfair', label:'Playfair Dspl', css:"'Playfair Display',serif",          google:'Playfair+Display'},
+];
+
 // ════════════════════════════════════════════
 // 상태
 // ════════════════════════════════════════════
@@ -731,6 +832,9 @@ let S = {
   bgMusicName: '',
   bgMusicVolume: 0.7,
   bgMusicFadeOut: true,
+  bgMusicIn: 0,
+  bgMusicOut: -1,
+  tlZoom: 1.0,
 };
 
 let _clipId = 0;
@@ -752,6 +856,9 @@ function makeClip(dataURL, name) {
     kenBurns: false,
     kbSX:50, kbSY:50, kbSScale:1.0,
     kbEX:50, kbEY:50, kbEScale:1.2,
+    speed: 1.0,
+    transX: 0, transY: 0, transScale: 1.0, transRot: 0,
+    cropX: 0, cropY: 0, cropW: 100, cropH: 100,
     texts: [],
   };
 }
@@ -771,6 +878,7 @@ function makeText() {
     animDur: 0.5,
     startTime: 0,
     endTime: -1,
+    fontFamily: 'system',
   };
 }
 
@@ -901,7 +1009,7 @@ function renderFrame() {
   const {clip, cp, inTrans, tp, prev} = info;
 
   if (inTrans && prev) {
-    drawTransition(ctx, w, h, prev, 1.0, clip, tp, clip.transition);
+    drawTransition(ctx, w, h, prev, 1.0, clip, tp, clip.transition, cp);
   } else {
     drawClip(ctx, w, h, clip, cp);
   }
@@ -958,21 +1066,47 @@ function drawLetterbox(ctx, w, h, clip) {
 
 function drawImage(ctx, w, h, clip, progress) {
   const img = clip.img;
-  const filterStr = buildFilter(clip);
   ctx.save();
-  ctx.filter = filterStr;
+  ctx.filter = buildFilter(clip);
+
+  // Apply transform (position / scale / rotation about canvas center)
+  const tx = (clip.transX || 0) / 100 * w;
+  const ty = (clip.transY || 0) / 100 * h;
+  const sc = (clip.transScale != null) ? clip.transScale : 1.0;
+  const rot = (clip.transRot || 0) * Math.PI / 180;
+  if (tx || ty || sc !== 1 || rot) {
+    ctx.translate(w/2 + tx, h/2 + ty);
+    ctx.rotate(rot);
+    ctx.scale(sc, sc);
+    ctx.translate(-w/2, -h/2);
+  }
+
   if (clip.kenBurns) {
-    const sx = lerp(clip.kbSX, clip.kbEX, progress) / 100;
-    const sy = lerp(clip.kbSY, clip.kbEY, progress) / 100;
-    const scale = lerp(clip.kbSScale, clip.kbEScale, progress);
+    const effProg = Math.min(progress * (clip.speed || 1.0), 1.0);
+    const sx = lerp(clip.kbSX, clip.kbEX, effProg) / 100;
+    const sy = lerp(clip.kbSY, clip.kbEY, effProg) / 100;
+    const scale = lerp(clip.kbSScale, clip.kbEScale, effProg);
     const {dx,dy,dw,dh} = coverRect(img, w, h);
     const fw = dw * scale, fh = dh * scale;
-    const ox = (dx + (dw-fw)*sx);
-    const oy = (dy + (dh-fh)*sy);
-    ctx.drawImage(img, ox, oy, fw, fh);
+    ctx.drawImage(img, dx + (dw-fw)*sx, dy + (dh-fh)*sy, fw, fh);
   } else {
-    const {dx,dy,dw,dh} = containRect(img, w, h);
-    ctx.drawImage(img, dx, dy, dw, dh);
+    const cropX = clip.cropX || 0, cropY = clip.cropY || 0;
+    const cropW = (clip.cropW != null) ? clip.cropW : 100;
+    const cropH = (clip.cropH != null) ? clip.cropH : 100;
+    if (cropX || cropY || cropW < 100 || cropH < 100) {
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const sx2 = (cropX/100)*iw, sy2 = (cropY/100)*ih;
+      const sw2 = (cropW/100)*iw, sh2 = (cropH/100)*ih;
+      if (sw2 > 0 && sh2 > 0) {
+        const ar = sw2/sh2, cr2 = w/h;
+        let dw2, dh2;
+        if (ar > cr2) { dw2 = w; dh2 = w/ar; } else { dh2 = h; dw2 = h*ar; }
+        ctx.drawImage(img, sx2, sy2, sw2, sh2, (w-dw2)/2, (h-dh2)/2, dw2, dh2);
+      }
+    } else {
+      const {dx,dy,dw,dh} = containRect(img, w, h);
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
   }
   ctx.filter = 'none';
   ctx.restore();
@@ -1005,11 +1139,11 @@ function coverRect(img, w, h) {
 }
 
 // ── 트랜지션 ──
-function drawTransition(ctx, w, h, fromClip, fromProg, toClip, tp, type) {
+function drawTransition(ctx, w, h, fromClip, fromProg, toClip, tp, type, toProg) {
   const offA = new OffscreenCanvas(w, h);
   const offB = new OffscreenCanvas(w, h);
   drawClip(offA.getContext('2d'), w, h, fromClip, fromProg);
-  drawClip(offB.getContext('2d'), w, h, toClip, 0);
+  drawClip(offB.getContext('2d'), w, h, toClip, toProg || 0);
 
   const ease = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // easeInOut
 
@@ -1092,10 +1226,11 @@ function drawTexts(ctx, w, h, clip, ct) {
     ctx.save();
     ctx.globalAlpha = alpha;
     if (scl !== 1) { ctx.translate(x, y); ctx.scale(scl, scl); ctx.translate(-x, -y); }
+    const fontData = FONTS.find(f => f.id === (t.fontFamily || 'system')) || FONTS[0];
     let font = '';
     if (t.italic) font += 'italic ';
     if (t.bold)   font += 'bold ';
-    font += `${t.fontSize}px 'Segoe UI','맑은 고딕','Malgun Gothic',sans-serif`;
+    font += `${t.fontSize}px ${fontData.css}`;
     ctx.font = font;
     ctx.textAlign = t.align || 'center';
     ctx.textBaseline = 'middle';
@@ -1211,6 +1346,19 @@ function fmt(sec) {
 
 function lerp(a, b, t) { return a + (b-a) * Math.max(0, Math.min(1, t)); }
 
+// Google 폰트 동적 로드 (한번만)
+const _loadedFonts = new Set();
+function loadGoogleFont(fontId) {
+  if (_loadedFonts.has(fontId)) return;
+  const f = FONTS.find(x => x.id === fontId);
+  if (!f || !f.google) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${f.google}&display=swap`;
+  document.head.appendChild(link);
+  _loadedFonts.add(fontId);
+}
+
 // ════════════════════════════════════════════
 // 배경음악
 // ════════════════════════════════════════════
@@ -1244,9 +1392,10 @@ function playBgMusic() {
   _audioSource.buffer = S.bgMusicBuffer;
   _audioSource.loop = true;
   _audioSource.connect(_gainNode);
-  _audioStartOffset = S.currentTime % S.bgMusicBuffer.duration;
+  const inPt = S.bgMusicIn || 0;
+  _audioStartOffset = inPt + (S.currentTime % (S.bgMusicBuffer.duration - inPt));
   _audioStartedAt = ac.currentTime;
-  _audioSource.start(0, _audioStartOffset);
+  _audioSource.start(0, Math.max(0, _audioStartOffset));
 }
 
 function pauseBgMusic() {
@@ -1266,14 +1415,24 @@ function updateMusicUI() {
   const info = document.getElementById('musicInfo');
   const bar = document.getElementById('tlMusicBar');
   const name = document.getElementById('tlMusicName');
+  const trimSection = document.getElementById('musicTrimSection');
   if (S.bgMusicName) {
     info.textContent = `♫ ${S.bgMusicName}`;
     info.style.display = 'block';
     bar.style.display = 'flex';
     name.textContent = S.bgMusicName;
+    if (trimSection) {
+      trimSection.style.display = 'block';
+      if (S.bgMusicBuffer) {
+        const maxDur = Math.floor(S.bgMusicBuffer.duration);
+        document.getElementById('slMusicIn').max = maxDur;
+        document.getElementById('slMusicOut').max = maxDur;
+      }
+    }
   } else {
     info.style.display = 'none';
     bar.style.display = 'none';
+    if (trimSection) trimSection.style.display = 'none';
   }
 }
 
@@ -1307,11 +1466,17 @@ async function exportVideo() {
   const exportCtx = exportCanvas.getContext('2d');
   const videoStream = exportCanvas.captureStream(fps);
 
+  // 배경음악 오디오 트랙 추가
+  const audioStream = await getExportAudioStream();
+  const combinedStream = audioStream
+    ? new MediaStream([...videoStream.getTracks(), ...audioStream.getTracks()])
+    : videoStream;
+
   let mimeType = 'video/webm;codecs=vp9';
   if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
 
   const chunks = [];
-  const recorder = new MediaRecorder(videoStream, { mimeType, videoBitsPerSecond: bps });
+  const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: bps });
   recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
   recorder.start(100);
@@ -1452,7 +1617,7 @@ function renderExportFrame(rctx, w, h, t) {
   if (!info) return;
   const {clip, cp, inTrans, tp, prev, ct} = info;
   if (inTrans && prev) {
-    drawTransitionTo(rctx, w, h, prev, 1.0, clip, tp, clip.transition);
+    drawTransitionTo(rctx, w, h, prev, 1.0, clip, tp, clip.transition, cp);
   } else {
     drawClipTo(rctx, w, h, clip, cp);
   }
@@ -1463,16 +1628,29 @@ function drawClipTo(c, w, h, clip, progress) {
   if (!clip.img) { c.fillStyle='#222'; c.fillRect(0,0,w,h); return; }
   drawLetterboxTo(c, w, h, clip);
   c.save(); c.filter = buildFilter(clip);
+  const tx=(clip.transX||0)/100*w, ty=(clip.transY||0)/100*h;
+  const tsc=(clip.transScale!=null)?clip.transScale:1.0;
+  const rot=(clip.transRot||0)*Math.PI/180;
+  if(tx||ty||tsc!==1||rot){c.translate(w/2+tx,h/2+ty);c.rotate(rot);c.scale(tsc,tsc);c.translate(-w/2,-h/2);}
   if (clip.kenBurns) {
-    const sx=lerp(clip.kbSX,clip.kbEX,progress)/100;
-    const sy=lerp(clip.kbSY,clip.kbEY,progress)/100;
-    const sc=lerp(clip.kbSScale,clip.kbEScale,progress);
+    const ep=Math.min(progress*(clip.speed||1.0),1.0);
+    const sx=lerp(clip.kbSX,clip.kbEX,ep)/100;
+    const sy=lerp(clip.kbSY,clip.kbEY,ep)/100;
+    const ksc=lerp(clip.kbSScale,clip.kbEScale,ep);
     const {dx,dy,dw,dh}=coverRect(clip.img,w,h);
-    const fw=dw*sc,fh=dh*sc;
+    const fw=dw*ksc,fh=dh*ksc;
     c.drawImage(clip.img,dx+(dw-fw)*sx,dy+(dh-fh)*sy,fw,fh);
   } else {
-    const {dx,dy,dw,dh}=containRect(clip.img,w,h);
-    c.drawImage(clip.img,dx,dy,dw,dh);
+    const cropX=clip.cropX||0, cropY=clip.cropY||0;
+    const cropW=(clip.cropW!=null)?clip.cropW:100, cropH=(clip.cropH!=null)?clip.cropH:100;
+    if(cropX||cropY||cropW<100||cropH<100){
+      const iw=clip.img.naturalWidth,ih=clip.img.naturalHeight;
+      const sx2=(cropX/100)*iw,sy2=(cropY/100)*ih,sw2=(cropW/100)*iw,sh2=(cropH/100)*ih;
+      if(sw2>0&&sh2>0){const ar=sw2/sh2,cr2=w/h;let dw2,dh2;if(ar>cr2){dw2=w;dh2=w/ar;}else{dh2=h;dw2=h*ar;}c.drawImage(clip.img,sx2,sy2,sw2,sh2,(w-dw2)/2,(h-dh2)/2,dw2,dh2);}
+    } else {
+      const {dx,dy,dw,dh}=containRect(clip.img,w,h);
+      c.drawImage(clip.img,dx,dy,dw,dh);
+    }
   }
   c.filter='none'; c.restore();
 }
@@ -1493,10 +1671,10 @@ function drawLetterboxTo(c, w, h, clip) {
   }
 }
 
-function drawTransitionTo(c, w, h, fromClip, fp, toClip, tp, type) {
+function drawTransitionTo(c, w, h, fromClip, fp, toClip, tp, type, toProg) {
   const oA=new OffscreenCanvas(w,h), oB=new OffscreenCanvas(w,h);
   drawClipTo(oA.getContext('2d'),w,h,fromClip,fp);
-  drawClipTo(oB.getContext('2d'),w,h,toClip,0);
+  drawClipTo(oB.getContext('2d'),w,h,toClip,toProg||0);
   const ease=t=>t<0.5?2*t*t:-1+(4-2*t)*t;
   switch(type) {
     case 'fade':
@@ -1523,6 +1701,27 @@ function drawTransitionTo(c, w, h, fromClip, fp, toClip, tp, type) {
 }
 
 const yieldFrame = () => new Promise(r => setTimeout(r, 0));
+
+// 내보내기용 오디오 스트림 (배경음악 → MediaStream)
+async function getExportAudioStream() {
+  if (!S.bgMusicBuffer) return null;
+  try {
+    const ac = new AudioContext();
+    const src = ac.createBufferSource();
+    src.buffer = S.bgMusicBuffer;
+    src.loop = true;
+    const gain = ac.createGain();
+    gain.gain.value = S.bgMusicVolume;
+    const dest = ac.createMediaStreamDestination();
+    src.connect(gain);
+    gain.connect(dest);
+    const startOff = S.bgMusicIn + (S.currentTime % (S.bgMusicBuffer.duration - S.bgMusicIn));
+    src.start(0, Math.max(0, startOff));
+    return dest.stream;
+  } catch(e) {
+    return null;
+  }
+}
 
 function cleanupExport() {
   S.exportRunning = false;
@@ -1658,11 +1857,12 @@ function renderTimeline() {
     }
     const el = document.createElement('div');
     el.className = 'tl-clip' + (c.id === S.selId ? ' on' : '');
-    const w = Math.max(70, Math.round((c.duration / Math.max(tot, 1)) * 600));
+    const w = Math.max(70, Math.round((c.duration / Math.max(tot, 1)) * 600 * S.tlZoom));
     el.style.width = w + 'px';
     el.innerHTML = `
       <img src="${c.dataURL}" alt="">
       <div class="tc-lbl">${(i+1)}. ${c.duration.toFixed(1)}s</div>
+      ${(c.speed||1)!==1?`<span class="tc-speed">${c.speed}×</span>`:''}
     `;
     el.addEventListener('click', () => { selectClip(c.id); seek(clipStartTime(i)); });
     track.appendChild(el);
@@ -1727,6 +1927,27 @@ function renderClipTab(c) {
     b.addEventListener('click', () => mutateClip(c.id, {letterbox: lb.id}));
     lbox.appendChild(b);
   });
+
+  // 재생 속도 버튼
+  const speedGrid = document.getElementById('clipSpeedBtns');
+  speedGrid.innerHTML = '';
+  [0.5, 1.0, 1.5, 2.0].forEach(sp => {
+    const b = document.createElement('button');
+    b.className = 'tbtn' + ((c.speed || 1.0) === sp ? ' on' : '');
+    b.textContent = sp + '×';
+    b.addEventListener('click', () => mutateClip(c.id, {speed: sp}));
+    speedGrid.appendChild(b);
+  });
+
+  // 크롭 슬라이더
+  document.getElementById('slCropX').value = c.cropX || 0;
+  document.getElementById('valCropX').textContent = c.cropX || 0;
+  document.getElementById('slCropY').value = c.cropY || 0;
+  document.getElementById('valCropY').textContent = c.cropY || 0;
+  document.getElementById('slCropW').value = (c.cropW != null) ? c.cropW : 100;
+  document.getElementById('valCropW').textContent = (c.cropW != null) ? c.cropW : 100;
+  document.getElementById('slCropH').value = (c.cropH != null) ? c.cropH : 100;
+  document.getElementById('valCropH').textContent = (c.cropH != null) ? c.cropH : 100;
 }
 
 function renderAdjustTab(c) {
@@ -1747,6 +1968,17 @@ function renderAdjustTab(c) {
     b.addEventListener('click', () => mutateClip(c.id, {filter: f.id}));
     grid.appendChild(b);
   });
+
+  // 변환 슬라이더
+  document.getElementById('slTransX').value = c.transX || 0;
+  document.getElementById('valTransX').textContent = c.transX || 0;
+  document.getElementById('slTransY').value = c.transY || 0;
+  document.getElementById('valTransY').textContent = c.transY || 0;
+  const tsc = (c.transScale != null) ? c.transScale : 1.0;
+  document.getElementById('slTransScale').value = tsc;
+  document.getElementById('valTransScale').textContent = tsc.toFixed(2) + '×';
+  document.getElementById('slTransRot').value = c.transRot || 0;
+  document.getElementById('valTransRot').textContent = (c.transRot || 0) + '°';
 }
 
 function renderTextTab(c) {
@@ -1779,6 +2011,8 @@ function renderTextEditor(c) {
   document.getElementById('teContent').value = t.text;
   document.getElementById('teFontSize').value = t.fontSize;
   document.getElementById('valFontSize').textContent = t.fontSize + 'px';
+  const selFont = document.getElementById('teFontFamily');
+  selFont.innerHTML = FONTS.map(f => `<option value="${f.id}" ${f.id===(t.fontFamily||'system')?'selected':''}>${f.label}</option>`).join('');
   document.getElementById('teColor').value = t.color;
   setBtn('teBold',   t.bold);
   setBtn('teItalic', t.italic);
@@ -1825,6 +2059,20 @@ function renderMotionTab(c) {
   if (S.bgMusicName) {
     document.getElementById('musicInfo').textContent = '♫ ' + S.bgMusicName;
     document.getElementById('musicInfo').style.display = 'block';
+  }
+  // 오디오 트림
+  const trimSection = document.getElementById('musicTrimSection');
+  if (trimSection) {
+    trimSection.style.display = S.bgMusicBuffer ? 'block' : 'none';
+    if (S.bgMusicBuffer) {
+      const maxDur = Math.floor(S.bgMusicBuffer.duration);
+      document.getElementById('slMusicIn').max = maxDur;
+      document.getElementById('slMusicOut').max = maxDur;
+    }
+    document.getElementById('slMusicIn').value = S.bgMusicIn;
+    document.getElementById('valMusicIn').textContent = S.bgMusicIn.toFixed(1) + 's';
+    document.getElementById('slMusicOut').value = S.bgMusicOut;
+    document.getElementById('valMusicOut').textContent = S.bgMusicOut < 0 ? '전체' : S.bgMusicOut.toFixed(1) + 's';
   }
 }
 
@@ -2227,6 +2475,70 @@ function initEvents() {
     b.dataset.w = res.w; b.dataset.h = res.h;
     b.addEventListener('click', () => applyResolution(res));
     resList.appendChild(b);
+  });
+
+  // ─ 타임라인 줌 ─
+  document.getElementById('btnTlZoomIn').addEventListener('click', () => {
+    S.tlZoom = Math.min(8, S.tlZoom * 1.5);
+    document.getElementById('tlZoomLbl').textContent = S.tlZoom.toFixed(1) + '×';
+    renderTimeline();
+  });
+  document.getElementById('btnTlZoomOut').addEventListener('click', () => {
+    S.tlZoom = Math.max(0.2, S.tlZoom / 1.5);
+    document.getElementById('tlZoomLbl').textContent = S.tlZoom.toFixed(1) + '×';
+    renderTimeline();
+  });
+
+  // ─ 크롭 슬라이더 ─
+  const bindCropSlider = (id, valId, key) => {
+    document.getElementById(id).addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      document.getElementById(valId).textContent = v;
+      const c = S.clips.find(c => c.id === S.selId);
+      if (c) { c[key] = v; renderFrame(); }
+    });
+    document.getElementById(id).addEventListener('change', () => snapshot());
+  };
+  bindCropSlider('slCropX','valCropX','cropX');
+  bindCropSlider('slCropY','valCropY','cropY');
+  bindCropSlider('slCropW','valCropW','cropW');
+  bindCropSlider('slCropH','valCropH','cropH');
+  document.getElementById('btnResetCrop').addEventListener('click', () => {
+    mutateClip(S.selId, {cropX:0, cropY:0, cropW:100, cropH:100});
+  });
+
+  // ─ 변환(Transform) 슬라이더 ─
+  const bindTransSlider = (id, valId, key, fmt) => {
+    document.getElementById(id).addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      document.getElementById(valId).textContent = fmt ? fmt(v) : v;
+      const c = S.clips.find(c => c.id === S.selId);
+      if (c) { c[key] = v; renderFrame(); }
+    });
+    document.getElementById(id).addEventListener('change', () => snapshot());
+  };
+  bindTransSlider('slTransX','valTransX','transX', v=>v);
+  bindTransSlider('slTransY','valTransY','transY', v=>v);
+  bindTransSlider('slTransScale','valTransScale','transScale', v=>parseFloat(v).toFixed(2)+'×');
+  bindTransSlider('slTransRot','valTransRot','transRot', v=>v+'°');
+  document.getElementById('btnResetTrans').addEventListener('click', () => {
+    mutateClip(S.selId, {transX:0, transY:0, transScale:1.0, transRot:0});
+  });
+
+  // ─ 폰트 패밀리 ─
+  document.getElementById('teFontFamily').addEventListener('change', e => {
+    loadGoogleFont(e.target.value);
+    if (S.selId && S.selTextId) mutateText(S.selId, S.selTextId, {fontFamily: e.target.value});
+  });
+
+  // ─ 오디오 트림 ─
+  document.getElementById('slMusicIn').addEventListener('input', e => {
+    S.bgMusicIn = parseFloat(e.target.value);
+    document.getElementById('valMusicIn').textContent = S.bgMusicIn.toFixed(1) + 's';
+  });
+  document.getElementById('slMusicOut').addEventListener('input', e => {
+    S.bgMusicOut = parseFloat(e.target.value);
+    document.getElementById('valMusicOut').textContent = S.bgMusicOut < 0 ? '전체' : S.bgMusicOut.toFixed(1) + 's';
   });
 
   // 키보드 단축키
