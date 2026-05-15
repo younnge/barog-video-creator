@@ -66,6 +66,7 @@ body{font-family:'Segoe UI','맑은 고딕','Malgun Gothic',system-ui,sans-serif
 .ci{position:relative;border:2px solid transparent;border-radius:6px;cursor:pointer;overflow:hidden;aspect-ratio:16/9;background:var(--bg3);transition:border-color .15s;flex-shrink:0}
 .ci:hover{border-color:var(--border2)}
 .ci.on{border-color:var(--accent)}
+.ci.multi-sel{border-color:var(--orange)}
 .ci.drag-over-clip{border-color:var(--orange);background:rgba(240,160,64,.1)}
 .ci img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .ci-num{position:absolute;top:3px;left:3px;background:rgba(0,0,0,.7);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px}
@@ -168,6 +169,7 @@ select.fc{cursor:pointer}
 .tl-clip{height:62px;min-width:70px;border:2px solid transparent;border-radius:5px;overflow:hidden;cursor:pointer;position:relative;flex-shrink:0;background:var(--bg3);transition:border-color .15s}
 .tl-clip:hover{border-color:var(--border2)}
 .tl-clip.on{border-color:var(--accent)}
+.tl-clip.multi-sel{border-color:var(--orange)}
 .tl-clip img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .tl-clip .tc-lbl{position:absolute;bottom:0;left:0;right:0;padding:2px 4px;background:rgba(0,0,0,.65);font-size:9px;color:#fff}
 .tl-arr{color:var(--txt3);font-size:12px;flex-shrink:0;user-select:none}
@@ -363,6 +365,9 @@ select.fc{cursor:pointer}
       <button class="tab" data-tab="text">텍스트</button>
       <button class="tab" data-tab="motion">모션</button>
     </div>
+    <div id="multiSelBanner" style="display:none;background:var(--orange);color:#fff;font-size:10px;font-weight:700;text-align:center;padding:4px 8px;flex-shrink:0">
+      <span id="multiSelCount"></span>개 클립 선택됨 — 변경이 모두 적용됩니다
+    </div>
 
     <!-- 탭: 클립 -->
     <div class="tab-body on" id="tab-clip">
@@ -504,10 +509,20 @@ select.fc{cursor:pointer}
     <div class="tab-body" id="tab-text">
       <div class="no-sel" id="noTextMsg">클립을 선택하세요</div>
       <div id="textProps" style="display:none">
-        <button class="btn btn-ghost btn-sm" id="btnAddText" style="width:100%;margin-bottom:8px">+ 텍스트 추가</button>
+        <button class="btn btn-ghost btn-sm" id="btnAddText" style="width:100%;margin-bottom:6px">+ 텍스트 추가</button>
+        <div style="display:flex;gap:4px;margin-bottom:8px">
+          <button class="btn btn-ghost btn-sm" id="btnCopyFromPrev" style="flex:1;font-size:10px" title="이전 클립의 텍스트를 현재 클립으로 가져옵니다">← 이전 클립 복사</button>
+          <button class="btn btn-ghost btn-sm" id="btnCopyToAll" style="flex:1;font-size:10px" title="현재 클립의 텍스트를 모든 클립에 복사합니다">전체 클립 복사 →</button>
+        </div>
         <div class="text-list" id="textList"></div>
         <div class="text-editor" id="textEditor" style="display:none">
-          <div class="te-title">텍스트 편집 <button class="btn-icon btn-sm" id="btnCloseTE" style="float:right;padding:1px 5px;font-size:11px">✕</button></div>
+          <div class="te-title" style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+            <span>텍스트 편집</span>
+            <div style="display:flex;gap:3px;align-items:center">
+              <button class="btn btn-ghost btn-sm" id="btnCopyTextToNext" style="font-size:9px;padding:2px 6px" title="이 텍스트를 다음 클립에 복사">→ 다음</button>
+              <button class="btn-icon btn-sm" id="btnCloseTE" style="padding:1px 5px;font-size:11px">✕</button>
+            </div>
+          </div>
           <div class="fg">
             <textarea class="fc" id="teContent" rows="2" style="resize:vertical;font-size:12px"></textarea>
           </div>
@@ -826,6 +841,7 @@ const FONTS = [
 let S = {
   clips: [],
   selId: null,
+  selIds: new Set(),
   selTextId: null,
   playing: false,
   currentTime: 0,
@@ -927,6 +943,7 @@ function restoreSnap(snap) {
   S.clips = JSON.parse(snap);
   S.clips.forEach(c => { c.img = oldImgs[c.id] || null; loadImg(c); });
   if (!S.clips.find(c => c.id === S.selId)) S.selId = null;
+  S.selIds = new Set(S.selId ? [S.selId] : []);
   renderUI();
   renderFrame();
 }
@@ -1847,7 +1864,7 @@ function renderClipList() {
 
   S.clips.forEach((c, i) => {
     const el = document.createElement('div');
-    el.className = 'ci' + (c.id === S.selId ? ' on' : '');
+    el.className = 'ci' + (c.id === S.selId ? ' on' : (S.selIds.has(c.id) ? ' multi-sel' : ''));
     el.dataset.id = c.id;
     el.draggable = true;
     el.innerHTML = `
@@ -1861,8 +1878,32 @@ function renderClipList() {
     el.addEventListener('click', (e) => {
       if (e.target.classList.contains('ci-del')) { deleteClip(c.id); return; }
       if (e.target.classList.contains('ci-dup')) { duplicateClip(c.id); return; }
-      selectClip(c.id);
-      seek(clipStartTime(i));
+      if (e.ctrlKey || e.metaKey) {
+        if (S.selIds.has(c.id)) {
+          S.selIds.delete(c.id);
+          if (S.selId === c.id) {
+            const rem = [...S.selIds];
+            S.selId = rem.length ? rem[rem.length - 1] : null;
+          }
+        } else {
+          S.selIds.add(c.id);
+          S.selId = c.id;
+        }
+        S.selTextId = null;
+        renderUI();
+      } else if (e.shiftKey && S.selId) {
+        const anchorIdx = S.clips.findIndex(x => x.id === S.selId);
+        const start = Math.min(anchorIdx, i);
+        const end = Math.max(anchorIdx, i);
+        for (let k = start; k <= end; k++) S.selIds.add(S.clips[k].id);
+        S.selId = c.id;
+        S.selTextId = null;
+        renderUI();
+      } else {
+        S.selIds = new Set([c.id]);
+        selectClip(c.id);
+        seek(clipStartTime(i));
+      }
     });
     // 드래그 재정렬
     el.addEventListener('dragstart', e => { e.dataTransfer.setData('clipId', c.id); });
@@ -1895,7 +1936,7 @@ function renderTimeline() {
       track.appendChild(arr);
     }
     const el = document.createElement('div');
-    el.className = 'tl-clip' + (c.id === S.selId ? ' on' : '');
+    el.className = 'tl-clip' + (c.id === S.selId ? ' on' : (S.selIds.has(c.id) ? ' multi-sel' : ''));
     const w = Math.max(70, Math.round((c.duration / Math.max(tot, 1)) * 600 * S.tlZoom));
     el.style.width = w + 'px';
     el.innerHTML = `
@@ -1903,13 +1944,47 @@ function renderTimeline() {
       <div class="tc-lbl">${(i+1)}. ${c.duration.toFixed(1)}s</div>
       ${(c.speed||1)!==1?`<span class="tc-speed">${c.speed}×</span>`:''}
     `;
-    el.addEventListener('click', () => { selectClip(c.id); seek(clipStartTime(i)); });
+    el.addEventListener('click', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (S.selIds.has(c.id)) {
+          S.selIds.delete(c.id);
+          if (S.selId === c.id) {
+            const rem = [...S.selIds];
+            S.selId = rem.length ? rem[rem.length - 1] : null;
+          }
+        } else {
+          S.selIds.add(c.id);
+          S.selId = c.id;
+        }
+        S.selTextId = null;
+        renderUI();
+      } else if (e.shiftKey && S.selId) {
+        const anchorIdx = S.clips.findIndex(x => x.id === S.selId);
+        const start = Math.min(anchorIdx, i);
+        const end = Math.max(anchorIdx, i);
+        for (let k = start; k <= end; k++) S.selIds.add(S.clips[k].id);
+        S.selId = c.id;
+        S.selTextId = null;
+        renderUI();
+      } else {
+        S.selIds = new Set([c.id]);
+        selectClip(c.id);
+        seek(clipStartTime(i));
+      }
+    });
     track.appendChild(el);
   });
 }
 
 function renderRightPanel() {
   const sel = S.clips.find(c => c.id === S.selId);
+  const multiCount = S.selIds.size;
+  const banner = document.getElementById('multiSelBanner');
+  if (banner) {
+    banner.style.display = (multiCount > 1) ? 'block' : 'none';
+    const countEl = document.getElementById('multiSelCount');
+    if (countEl) countEl.textContent = multiCount;
+  }
   const tabs = ['clip','adjust','text','motion'];
   tabs.forEach(tab => {
     const noSel = document.getElementById('no' + cap(tab) + 'Msg');
@@ -1948,7 +2023,7 @@ function renderClipTab(c) {
     b.textContent = tr.label;
     b.title = tr.label;
     b.addEventListener('click', () => {
-      mutateClip(c.id, {transition: tr.id});
+      mutateSelected({transition: tr.id});
     });
     grid.appendChild(b);
   });
@@ -1963,7 +2038,7 @@ function renderClipTab(c) {
     const b = document.createElement('button');
     b.className = 'lbtn' + (c.letterbox === lb.id ? ' on' : '');
     b.textContent = lb.label;
-    b.addEventListener('click', () => mutateClip(c.id, {letterbox: lb.id}));
+    b.addEventListener('click', () => mutateSelected({letterbox: lb.id}));
     lbox.appendChild(b);
   });
 
@@ -1974,7 +2049,7 @@ function renderClipTab(c) {
     const b = document.createElement('button');
     b.className = 'tbtn' + ((c.speed || 1.0) === sp ? ' on' : '');
     b.textContent = sp + '×';
-    b.addEventListener('click', () => mutateClip(c.id, {speed: sp}));
+    b.addEventListener('click', () => mutateSelected({speed: sp}));
     speedGrid.appendChild(b);
   });
 
@@ -2004,7 +2079,7 @@ function renderAdjustTab(c) {
     const b = document.createElement('button');
     b.className = 'fbtn' + (c.filter === f.id ? ' on' : '');
     b.textContent = f.label;
-    b.addEventListener('click', () => mutateClip(c.id, {filter: f.id}));
+    b.addEventListener('click', () => mutateSelected({filter: f.id}));
     grid.appendChild(b);
   });
 
@@ -2129,8 +2204,21 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 // ════════════════════════════════════════════
 function selectClip(id) {
   S.selId = id;
+  S.selIds = new Set(id ? [id] : []);
   S.selTextId = null;
   renderUI();
+}
+
+function getSelClips() {
+  if (S.selIds.size) return S.clips.filter(c => S.selIds.has(c.id));
+  return S.selId ? [S.clips.find(c => c.id === S.selId)].filter(Boolean) : [];
+}
+
+function mutateSelected(changes) {
+  getSelClips().forEach(c => Object.assign(c, changes));
+  snapshot();
+  renderUI();
+  renderFrame();
 }
 
 function duplicateClip(id) {
@@ -2300,9 +2388,7 @@ function initEvents() {
   document.getElementById('slDur').addEventListener('input', e => {
     const v = parseFloat(e.target.value);
     document.getElementById('valDur').textContent = v.toFixed(1)+'s';
-    const c = S.clips.find(c => c.id === S.selId);
-    if (!c) return;
-    c.duration = v;
+    getSelClips().forEach(c => { c.duration = v; });
     renderTimeline();
     updateSeek();
     document.getElementById('tlTotal').textContent = `전체 ${totalDuration().toFixed(1)}초`;
@@ -2313,8 +2399,7 @@ function initEvents() {
   document.getElementById('slTransDur').addEventListener('input', e => {
     const v = parseFloat(e.target.value);
     document.getElementById('valTransDur').textContent = v.toFixed(1)+'s';
-    const c = S.clips.find(c => c.id === S.selId);
-    if (c) c.transDur = v;
+    getSelClips().forEach(c => { c.transDur = v; });
     renderFrame();
   });
   document.getElementById('slTransDur').addEventListener('change', () => snapshot());
@@ -2326,13 +2411,13 @@ function initEvents() {
     const key = ['brightness','contrast','saturation'][i];
     sl.addEventListener('input', e => {
       val.textContent = e.target.value;
-      const c = S.clips.find(c => c.id === S.selId);
-      if (c) { c[key] = parseInt(e.target.value); renderFrame(); }
+      getSelClips().forEach(c => { c[key] = parseInt(e.target.value); });
+      renderFrame();
     });
     sl.addEventListener('change', () => snapshot());
   });
   document.getElementById('btnResetAdj').addEventListener('click', () => {
-    mutateClip(S.selId, {brightness:100, contrast:100, saturation:100, filter:'none'});
+    mutateSelected({brightness:100, contrast:100, saturation:100, filter:'none'});
   });
 
   // ─ 텍스트 탭 ─
@@ -2351,6 +2436,54 @@ function initEvents() {
     S.selTextId = null;
     const c = S.clips.find(c => c.id === S.selId);
     if (c) renderTextTab(c);
+  });
+
+  // 이전 클립 텍스트 복사 → 현재 클립
+  document.getElementById('btnCopyFromPrev').addEventListener('click', () => {
+    const idx = S.clips.findIndex(c => c.id === S.selId);
+    if (idx <= 0) { toast('이전 클립이 없습니다', 'warn'); return; }
+    const cur = S.clips[idx];
+    const prev = S.clips[idx - 1];
+    if (!prev.texts.length) { toast('이전 클립에 텍스트가 없습니다', 'warn'); return; }
+    const copied = prev.texts.map(t => ({...JSON.parse(JSON.stringify(t)), id: ++_textId}));
+    cur.texts.push(...copied);
+    snapshot();
+    renderTextTab(cur);
+    renderFrame();
+    toast(`텍스트 ${copied.length}개를 이전 클립에서 복사했습니다`, 'ok');
+  });
+
+  // 현재 클립 텍스트 → 모든 클립에 복사
+  document.getElementById('btnCopyToAll').addEventListener('click', () => {
+    const cur = S.clips.find(c => c.id === S.selId);
+    if (!cur) return;
+    if (!cur.texts.length) { toast('현재 클립에 텍스트가 없습니다', 'warn'); return; }
+    if (!confirm(`현재 클립의 텍스트 ${cur.texts.length}개를 모든 클립에 복사합니다.\n각 클립의 기존 텍스트는 유지됩니다. 계속하시겠습니까?`)) return;
+    let count = 0;
+    S.clips.forEach(c => {
+      if (c.id === cur.id) return;
+      const copied = cur.texts.map(t => ({...JSON.parse(JSON.stringify(t)), id: ++_textId}));
+      c.texts.push(...copied);
+      count++;
+    });
+    snapshot();
+    renderFrame();
+    toast(`${count}개 클립에 텍스트를 복사했습니다`, 'ok');
+  });
+
+  // 현재 텍스트 → 다음 클립에 복사
+  document.getElementById('btnCopyTextToNext').addEventListener('click', () => {
+    const idx = S.clips.findIndex(c => c.id === S.selId);
+    if (idx < 0 || idx >= S.clips.length - 1) { toast('다음 클립이 없습니다', 'warn'); return; }
+    if (!S.selTextId) { toast('텍스트를 선택하세요', 'warn'); return; }
+    const cur = S.clips[idx];
+    const next = S.clips[idx + 1];
+    const t = cur.texts.find(t => t.id === S.selTextId);
+    if (!t) return;
+    next.texts.push({...JSON.parse(JSON.stringify(t)), id: ++_textId});
+    snapshot();
+    renderFrame();
+    toast('다음 클립에 텍스트를 복사했습니다', 'ok');
   });
 
   // 텍스트 편집 필드들
@@ -2402,25 +2535,25 @@ function initEvents() {
 
   // ─ 모션 탭 ─
   document.getElementById('cbKenBurns').addEventListener('change', e => {
-    mutateClip(S.selId, {kenBurns: e.target.checked});
+    mutateSelected({kenBurns: e.target.checked});
   });
 
   document.getElementById('slKbSS').addEventListener('input', e => {
     const v = parseFloat(e.target.value);
     document.getElementById('valKbSS').textContent = v.toFixed(2)+'×';
-    const c = S.clips.find(c=>c.id===S.selId);
-    if(c){c.kbSScale=v; renderFrame();}
+    getSelClips().forEach(c => { c.kbSScale = v; });
+    renderFrame();
   });
   document.getElementById('slKbSS').addEventListener('change', ()=>snapshot());
   document.getElementById('slKbES').addEventListener('input', e => {
     const v = parseFloat(e.target.value);
     document.getElementById('valKbES').textContent = v.toFixed(2)+'×';
-    const c = S.clips.find(c=>c.id===S.selId);
-    if(c){c.kbEScale=v; renderFrame();}
+    getSelClips().forEach(c => { c.kbEScale = v; });
+    renderFrame();
   });
   document.getElementById('slKbES').addEventListener('change', ()=>snapshot());
   document.getElementById('btnKbReset').addEventListener('click', () => {
-    mutateClip(S.selId, {kbSX:50,kbSY:50,kbSScale:1.0,kbEX:50,kbEY:50,kbEScale:1.2});
+    mutateSelected({kbSX:50,kbSY:50,kbSScale:1.0,kbEX:50,kbEY:50,kbEScale:1.2});
   });
 
   // 켄번 점 드래그
@@ -2502,7 +2635,7 @@ function initEvents() {
   document.getElementById('btnClearAll').addEventListener('click', () => {
     if (!S.clips.length) return;
     if (confirm('모든 클립을 삭제할까요?')) {
-      S.clips = []; S.selId = null;
+      S.clips = []; S.selId = null; S.selIds = new Set();
       snapshot(); renderUI(); renderFrame();
     }
   });
@@ -2535,8 +2668,8 @@ function initEvents() {
     document.getElementById(id).addEventListener('input', e => {
       const v = parseFloat(e.target.value);
       document.getElementById(valId).textContent = v;
-      const c = S.clips.find(c => c.id === S.selId);
-      if (c) { c[key] = v; renderFrame(); }
+      getSelClips().forEach(c => { c[key] = v; });
+      renderFrame();
     });
     document.getElementById(id).addEventListener('change', () => snapshot());
   };
@@ -2545,7 +2678,7 @@ function initEvents() {
   bindCropSlider('slCropW','valCropW','cropW');
   bindCropSlider('slCropH','valCropH','cropH');
   document.getElementById('btnResetCrop').addEventListener('click', () => {
-    mutateClip(S.selId, {cropX:0, cropY:0, cropW:100, cropH:100});
+    mutateSelected({cropX:0, cropY:0, cropW:100, cropH:100});
   });
 
   // ─ 변환(Transform) 슬라이더 ─
@@ -2553,8 +2686,8 @@ function initEvents() {
     document.getElementById(id).addEventListener('input', e => {
       const v = parseFloat(e.target.value);
       document.getElementById(valId).textContent = fmt ? fmt(v) : v;
-      const c = S.clips.find(c => c.id === S.selId);
-      if (c) { c[key] = v; renderFrame(); }
+      getSelClips().forEach(c => { c[key] = v; });
+      renderFrame();
     });
     document.getElementById(id).addEventListener('change', () => snapshot());
   };
@@ -2563,7 +2696,7 @@ function initEvents() {
   bindTransSlider('slTransScale','valTransScale','transScale', v=>parseFloat(v).toFixed(2)+'×');
   bindTransSlider('slTransRot','valTransRot','transRot', v=>v+'°');
   document.getElementById('btnResetTrans').addEventListener('click', () => {
-    mutateClip(S.selId, {transX:0, transY:0, transScale:1.0, transRot:0});
+    mutateSelected({transX:0, transY:0, transScale:1.0, transRot:0});
   });
 
   // ─ 폰트 패밀리 ─
