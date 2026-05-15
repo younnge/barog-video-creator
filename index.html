@@ -231,6 +231,14 @@ select.fc{cursor:pointer}
 .worker-badge{font-size:10px;padding:2px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:3px;color:var(--txt2)}
 /* 속도 배지 (타임라인) */
 .tc-speed{position:absolute;top:2px;right:2px;background:rgba(74,144,226,.85);color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px}
+/* 슬라이더 정밀 조정 버튼 */
+.sl-adj{background:var(--bg4);border:1px solid var(--border2);border-radius:3px;color:var(--txt2);font-size:12px;width:18px;height:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;line-height:1;transition:all .15s}
+.sl-adj:hover{color:var(--txt1);border-color:var(--accent)}
+/* 값 라벨 인라인 편집 입력창 */
+.sl-val-input{width:46px;background:var(--bg3);border:1px solid var(--accent);border-radius:3px;color:var(--txt1);font-size:11px;padding:1px 4px;text-align:right;outline:none;min-width:0;flex-shrink:0}
+/* 클릭 가능한 값 라벨 */
+.sl-val.clickable{cursor:pointer}
+.sl-val.clickable:hover{color:var(--txt1);text-decoration:underline dotted var(--txt3)}
 /* 모바일 */
 @media(max-width:700px){
   .pnl-l{width:150px}
@@ -2640,11 +2648,81 @@ function toggleTextProp(key) {
 }
 
 // ════════════════════════════════════════════
+// 슬라이더 정밀 조정 (A: 값 클릭 편집 + C: +/− 버튼)
+// ════════════════════════════════════════════
+function initSliderEnhancements() {
+  document.querySelectorAll('.sl-row').forEach(row => {
+    const slider = row.querySelector('input[type=range]');
+    const valSpan = row.querySelector('.sl-val');
+    if (!slider || !valSpan) return;
+
+    const step = parseFloat(slider.step) || 1;
+
+    // − 버튼 (슬라이더 앞)
+    const btnM = document.createElement('button');
+    btnM.className = 'sl-adj'; btnM.type = 'button';
+    btnM.textContent = '−'; btnM.title = `−${step}`;
+    row.insertBefore(btnM, slider);
+
+    // + 버튼 (valSpan 앞, 슬라이더 뒤)
+    const btnP = document.createElement('button');
+    btnP.className = 'sl-adj'; btnP.type = 'button';
+    btnP.textContent = '+'; btnP.title = `+${step}`;
+    row.insertBefore(btnP, valSpan);
+
+    const fireSlider = () => {
+      slider.dispatchEvent(new Event('input', {bubbles:true}));
+      slider.dispatchEvent(new Event('change', {bubbles:true}));
+    };
+
+    btnM.addEventListener('click', () => {
+      slider.value = Math.max(parseFloat(slider.min), parseFloat(slider.value) - step);
+      fireSlider();
+    });
+    btnP.addEventListener('click', () => {
+      slider.value = Math.min(parseFloat(slider.max), parseFloat(slider.value) + step);
+      fireSlider();
+    });
+
+    // 값 라벨 클릭 → 인라인 숫자 입력
+    valSpan.classList.add('clickable');
+    valSpan.title = '클릭하여 직접 입력';
+    valSpan.addEventListener('click', () => {
+      if (row.querySelector('.sl-val-input')) return; // 이미 열려 있으면 무시
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.className = 'sl-val-input';
+      inp.min = slider.min; inp.max = slider.max; inp.step = slider.step;
+      inp.value = parseFloat(slider.value);
+      valSpan.style.display = 'none';
+      valSpan.after(inp);
+      inp.focus(); inp.select();
+
+      const apply = () => {
+        const raw = parseFloat(inp.value);
+        if (!isNaN(raw)) {
+          slider.value = Math.max(parseFloat(slider.min), Math.min(parseFloat(slider.max), raw));
+          fireSlider();
+        }
+        inp.remove();
+        valSpan.style.display = '';
+      };
+      inp.addEventListener('blur', apply);
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); apply(); }
+        if (e.key === 'Escape') { inp.remove(); valSpan.style.display = ''; }
+      });
+    });
+  });
+}
+
+// ════════════════════════════════════════════
 // 초기화
 // ════════════════════════════════════════════
 function init() {
   applyResolution(S.resolution);
   initEvents();
+  initSliderEnhancements();
   snapshot(); // 빈 상태 스냅샷
   renderUI();
   renderFrame();
