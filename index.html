@@ -132,7 +132,7 @@ select.fc{cursor:pointer}
 .fbtn.on{background:var(--accent3);border-color:var(--accent);color:var(--accent)}
 
 /* 레터박스 */
-.lbox-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.lbox-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
 .lbtn{padding:6px 2px;background:var(--bg3);border:1px solid transparent;border-radius:var(--r-sm);color:var(--txt2);font-size:10px;cursor:pointer;text-align:center;transition:all .12s}
 .lbtn:hover{background:var(--bg4);color:var(--txt1)}
 .lbtn.on{background:var(--accent3);border-color:var(--accent);color:var(--accent)}
@@ -400,8 +400,16 @@ select.fc{cursor:pointer}
         </div>
         <hr class="hdivider">
         <div class="fg">
-          <label class="fl">레터박스 배경</label>
+          <label class="fl">배경 이미지</label>
           <div class="lbox-grid" id="lboxGrid"></div>
+          <div id="bgImgUploadRow" style="display:none;margin-top:6px">
+            <input type="file" id="bgImgFile" accept="image/*" style="display:none">
+            <div id="bgImgPreview" style="display:none;position:relative;margin-bottom:6px">
+              <img id="bgImgThumb" style="width:100%;border-radius:var(--r-sm);aspect-ratio:16/9;object-fit:cover;display:block">
+              <button id="btnBgImgRemove" style="position:absolute;top:4px;right:4px;background:rgba(255,69,58,.9);color:#fff;border:none;width:20px;height:20px;border-radius:5px;cursor:pointer;font-size:12px;line-height:1">×</button>
+            </div>
+            <button id="btnBgImgUpload" class="btn btn-ghost" style="width:100%;font-size:11px">＋ 배경 이미지 선택</button>
+          </div>
         </div>
         <hr class="hdivider">
         <div class="fg">
@@ -820,6 +828,7 @@ const LETTERBOX = [
   {id:'black', label:'검정'},
   {id:'white', label:'흰색'},
   {id:'grad',  label:'그라데'},
+  {id:'image', label:'이미지'},
 ];
 
 const TEMPLATES = [
@@ -884,6 +893,7 @@ function makeClip(dataURL, name) {
     transition: 'fade',
     transDur: 0.8,
     letterbox: 'blur',
+    bgImage: null,
     filter: 'none',
     brightness: 100,
     contrast: 100,
@@ -945,10 +955,14 @@ function redo() {
 }
 
 function restoreSnap(snap) {
-  const oldImgs = {};
-  S.clips.forEach(c => { oldImgs[c.id] = c.img; });
+  const oldImgs = {}, oldBgImgs = {};
+  S.clips.forEach(c => { oldImgs[c.id] = c.img; oldBgImgs[c.id] = c.bgImageObj; });
   S.clips = JSON.parse(snap);
-  S.clips.forEach(c => { c.img = oldImgs[c.id] || null; loadImg(c); });
+  S.clips.forEach(c => {
+    c.img = oldImgs[c.id] || null; loadImg(c);
+    c.bgImageObj = oldBgImgs[c.id] || null;
+    if (c.bgImage && !c.bgImageObj) loadBgImg(c);
+  });
   if (!S.clips.find(c => c.id === S.selId)) S.selId = null;
   S.selIds = new Set(S.selId ? [S.selId] : []);
   renderUI();
@@ -971,6 +985,13 @@ function loadImg(clip) {
     img.onerror = () => res(null);
     img.src = clip.dataURL;
   });
+}
+
+function loadBgImg(clip) {
+  if (!clip.bgImage) return;
+  const img = new Image();
+  img.onload = () => { clip.bgImageObj = img; renderFrame(); };
+  img.src = clip.bgImage;
 }
 
 async function addImages(files) {
@@ -1093,6 +1114,16 @@ function drawLetterbox(ctx, w, h, clip) {
       g.addColorStop(1, '#0d0f1a');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
+      break;
+    }
+    case 'image': {
+      if (clip.bgImageObj) {
+        const {dx,dy,dw,dh} = coverRect(clip.bgImageObj,w,h);
+        ctx.drawImage(clip.bgImageObj, dx, dy, dw, dh);
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+      }
       break;
     }
     default: // black
@@ -1730,6 +1761,15 @@ function drawLetterboxTo(c, w, h, clip) {
       g.addColorStop(0,'#1a1c27'); g.addColorStop(1,'#0d0f1a');
       c.fillStyle=g; c.fillRect(0,0,w,h); break;
     }
+    case 'image': {
+      if (clip.bgImageObj) {
+        const {dx:bx,dy:by,dw:bw,dh:bh}=coverRect(clip.bgImageObj,w,h);
+        c.drawImage(clip.bgImageObj,bx,by,bw,bh);
+      } else {
+        c.fillStyle='#000'; c.fillRect(0,0,w,h);
+      }
+      break;
+    }
     default: c.fillStyle='#000'; c.fillRect(0,0,w,h);
   }
 }
@@ -2038,16 +2078,20 @@ function renderClipTab(c) {
   document.getElementById('slTransDur').value = c.transDur;
   document.getElementById('valTransDur').textContent = c.transDur.toFixed(1) + 's';
 
-  // 레터박스
+  // 배경 이미지
   const lbox = document.getElementById('lboxGrid');
   lbox.innerHTML = '';
   LETTERBOX.forEach(lb => {
     const b = document.createElement('button');
     b.className = 'lbtn' + (c.letterbox === lb.id ? ' on' : '');
     b.textContent = lb.label;
-    b.addEventListener('click', () => mutateSelected({letterbox: lb.id}));
+    b.addEventListener('click', () => {
+      mutateSelected({letterbox: lb.id});
+      updateBgImgUploadRow();
+    });
     lbox.appendChild(b);
   });
+  updateBgImgUploadRow();
 
   // 재생 속도 버튼
   const speedGrid = document.getElementById('clipSpeedBtns');
@@ -2069,6 +2113,21 @@ function renderClipTab(c) {
   document.getElementById('valCropW').textContent = (c.cropW != null) ? c.cropW : 100;
   document.getElementById('slCropH').value = (c.cropH != null) ? c.cropH : 100;
   document.getElementById('valCropH').textContent = (c.cropH != null) ? c.cropH : 100;
+}
+
+function updateBgImgUploadRow() {
+  const c = S.clips.find(x => x.id === S.selId);
+  if (!c) return;
+  const row = document.getElementById('bgImgUploadRow');
+  const preview = document.getElementById('bgImgPreview');
+  const thumb = document.getElementById('bgImgThumb');
+  row.style.display = c.letterbox === 'image' ? 'block' : 'none';
+  if (c.bgImage) {
+    thumb.src = c.bgImage;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
 }
 
 function renderAdjustTab(c) {
@@ -2491,6 +2550,41 @@ function initEvents() {
     snapshot();
     renderFrame();
     toast('다음 클립에 텍스트를 복사했습니다', 'ok');
+  });
+
+  // 배경 이미지 업로드
+  document.getElementById('btnBgImgUpload').addEventListener('click', () => {
+    document.getElementById('bgImgFile').click();
+  });
+  document.getElementById('bgImgFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const c = S.clips.find(x => x.id === S.selId);
+    if (!c) return;
+    const dataURL = await fileToDataURL(file);
+    const imgObj = new Image();
+    imgObj.onload = () => {
+      c.bgImage = dataURL;
+      c.bgImageObj = imgObj;
+      c.letterbox = 'image';
+      snapshot();
+      renderUI();
+      renderFrame();
+      updateBgImgUploadRow();
+      toast('배경 이미지를 설정했습니다', 'ok');
+    };
+    imgObj.src = dataURL;
+    e.target.value = '';
+  });
+  document.getElementById('btnBgImgRemove').addEventListener('click', () => {
+    const c = S.clips.find(x => x.id === S.selId);
+    if (!c) return;
+    c.bgImage = null;
+    c.bgImageObj = null;
+    snapshot();
+    renderFrame();
+    updateBgImgUploadRow();
+    toast('배경 이미지를 삭제했습니다', 'ok');
   });
 
   // 텍스트 편집 필드들
