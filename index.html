@@ -524,6 +524,10 @@ select.fc{cursor:pointer}
                 <button class="btn btn-sm" id="teShadow">그림자</button>
               </div>
             </div>
+            <label class="cb-row" style="margin-top:7px">
+              <input type="checkbox" id="teSubtitleBar">
+              자막 바 (배경 박스)
+            </label>
           </div>
           <div class="fg">
             <label class="fl">정렬</label>
@@ -879,6 +883,7 @@ function makeText() {
     startTime: 0,
     endTime: -1,
     fontFamily: 'system',
+    subtitleBar: false,
   };
 }
 
@@ -1234,15 +1239,31 @@ function drawTexts(ctx, w, h, clip, ct) {
     ctx.font = font;
     ctx.textAlign = t.align || 'center';
     ctx.textBaseline = 'middle';
+    const disp = t.animation === 'typewriter'
+      ? t.text.slice(0, Math.floor(Math.min(elapsed / (t.animDur||0.5), 1) * t.text.length))
+      : t.text;
+    // 자막 바 — 텍스트 너비에 맞게 배경 박스 그리기
+    if (t.subtitleBar) {
+      const tw = ctx.measureText(disp || ' ').width;
+      const pad = t.fontSize * 0.35;
+      const bh = t.fontSize * 1.5;
+      const align = t.align || 'center';
+      const bx = align === 'center' ? x - tw/2 - pad
+               : align === 'right'  ? x - tw - pad
+               :                      x - pad;
+      ctx.save();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+      ctx.fillStyle = 'rgba(0,0,0,0.82)';
+      ctx.fillRect(bx, y - bh/2, tw + pad*2, bh);
+      ctx.restore();
+    }
     if (t.shadow) {
       ctx.shadowColor = 'rgba(0,0,0,0.85)';
       ctx.shadowBlur = 10;
       ctx.shadowOffsetX = 1;
       ctx.shadowOffsetY = 1;
     }
-    const disp = t.animation === 'typewriter'
-      ? t.text.slice(0, Math.floor(Math.min(elapsed / (t.animDur||0.5), 1) * t.text.length))
-      : t.text;
     ctx.fillStyle = t.color;
     ctx.fillText(disp, x, y);
     ctx.restore();
@@ -2017,6 +2038,8 @@ function renderTextEditor(c) {
   setBtn('teBold',   t.bold);
   setBtn('teItalic', t.italic);
   setBtn('teShadow', t.shadow);
+  const sbEl = document.getElementById('teSubtitleBar');
+  if (sbEl) sbEl.checked = !!t.subtitleBar;
   document.getElementById('tePosX').value = t.x;
   document.getElementById('valPosX').textContent = t.x;
   document.getElementById('tePosY').value = t.y;
@@ -2529,6 +2552,11 @@ function initEvents() {
   document.getElementById('teFontFamily').addEventListener('change', e => {
     loadGoogleFont(e.target.value);
     if (S.selId && S.selTextId) mutateText(S.selId, S.selTextId, {fontFamily: e.target.value});
+  });
+
+  // ─ 자막 바 ─
+  document.getElementById('teSubtitleBar').addEventListener('change', e => {
+    if (S.selId && S.selTextId) mutateText(S.selId, S.selTextId, {subtitleBar: e.target.checked});
   });
 
   // ─ 오디오 트림 ─
